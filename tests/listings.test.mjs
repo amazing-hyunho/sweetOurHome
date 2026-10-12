@@ -16,5 +16,11 @@ test('candidate depends on property and price, without financial inputs',()=>{
   assert.equal(e.alertCandidate,true); assert.equal(e.median,70000); assert.equal(e.tradeCount,3);
 });
 test('unknown floors do not qualify',()=>assert.equal(evaluateListing({price:60000,area:84.99,floor:null,trades},complex,filters,date).alertCandidate,false));
-test('target price works without comparable transactions',()=>assert.equal(evaluateListing({price:60000,area:84.99,floor:5,trades:[]},{...complex,targetPrice:61000},filters,date).alertCandidate,true));
+test('target price works without comparable transactions',()=>assert.equal(evaluateListing({price:60000,area:84.99,floor:5,trades:[]},{...complex,targets:[{area:84.99,price:61000}]},filters,date).alertCandidate,true));
 test('insufficient comparables do not qualify without a target',()=>assert.equal(evaluateListing({price:60000,area:84.99,floor:5,trades:trades.slice(0,2)},complex,filters,date).alertCandidate,false));
+
+test('target for another area and legacy unscoped target do not trigger',()=>{
+  const item={price:60000,area:59.94,floor:5,trades:[]};
+  assert.equal(evaluateListing(item,{...complex,targets:[{area:84.99,price:110000}]},filters,date).alertCandidate,false);
+  assert.equal(evaluateListing(item,{...complex,targetPrice:110000},filters,date).alertCandidate,false);
+});

@@ -1,3 +1,4 @@
+import { cleanState } from './public/storage.js';
 import http from 'node:http';
 import { readFile, mkdir, writeFile, rename } from 'node:fs/promises';
 import path from 'node:path';
@@ -38,7 +39,7 @@ const server = http.createServer(async (req,res) => {
       if (req.method === 'PUT') {
         if (req.headers.origin !== `http://${host}` || !req.headers['content-type']?.startsWith('application/json')) { res.writeHead(403); res.end('{}'); return; }
         let body=''; for await (const chunk of req) { body+=chunk; if (body.length>2000000) throw new Error('저장 용량을 초과했습니다.'); }
-        const next=JSON.parse(body); delete next.runtime; delete next.finance; validate(next);
+        const next=cleanState(JSON.parse(body)); validate(next);
         if (state.finance != null) next.finance = state.finance;
         next.alertSettings={ ...(next.alertSettings || {}), enabled:false };
         queue=queue.catch(()=>{}).then(async()=>{ await writeFile(stateFile+'.tmp', JSON.stringify(next,null,2), 'utf8'); await rename(stateFile+'.tmp',stateFile); state=next; });
@@ -47,7 +48,7 @@ const server = http.createServer(async (req,res) => {
       res.writeHead(405); res.end('{}'); return;
     }
     if (req.method !== 'GET') { res.writeHead(405); res.end(); return; }
-    const files = { '/':'public/index.html', '/app.js':'public/app.js', '/storage.js':'public/storage.js', '/style.css':'public/style.css', '/listings.mjs':'lib/listings.mjs' };
+    const files = { '/':'public/index.html', '/app.js':'public/app.js', '/storage.js':'public/storage.js', '/cloud.js':'public/cloud.js', '/firebase-config.js':'public/firebase-config.js', '/style.css':'public/style.css', '/listings.mjs':'lib/listings.mjs' };
     const file = files[url.pathname]; if (!file) { res.writeHead(404); res.end('Not found'); return; }
     res.setHeader('Content-Type',mime[path.extname(file)]); res.end(await readFile(path.join(root,file)));
   } catch(err) { res.writeHead(400,{'Content-Type':'application/json; charset=utf-8'}); res.end(JSON.stringify({error:err.message})); }
