@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "complexes": [
+    {
+      "name": "보라매삼성",
+      "source": "naver",
+      "sourceComplexId": "48",
+      "userUrl": "https://naver.me/56XKBq8a",
+      "complexUrl": "https://fin.land.naver.com/complexes/48",
+      "address": "서울시 관악구 봉천동 1698-1",
+      "households": 710,
+      "approvalDate": "1996-04-25",
+      "observedDate": "2026-10-10",
+      "collectionEnabled": false
+    }
+  ],
+  "filters": {
+    "tradeType": "sale",
+    "propertyType": "apartment",
+    "minExclusiveAreaM2": 59,
+    "minHouseholds": 400,
+    "minFloor": 3,
+    "unknownFloorAction": "review_without_alert",
+    "discountThreshold": 0.05
+  }
+}
