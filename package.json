@@ -12,5 +12,8 @@
   },
   "engines": {
     "node": ">=24"
+  },
+  "imports": {
+    "#storage": "./public/storage.js"
   }
 }
