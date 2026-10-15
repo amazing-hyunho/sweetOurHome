@@ -29,7 +29,8 @@ export function cleanState(input){
   const listings=input.listings.map(l=>{
     if(!text(l.id)||!text(l.label)||!complexes.some(c=>c.id===l.complexId)||!num(l.price,1,10000000)||!num(l.area,1,1000)||l.floor!==null&&!num(l.floor,1,200)||!link(l.url)||!text(l.observedDate)||!Array.isArray(l.trades)||l.trades.length>1000)throw Error('매물 정보를 확인해주세요.');
     const trades=l.trades.map(t=>{if(!num(t.price,1,10000000)||!num(t.area,1,1000)||!num(t.floor,1,200)||!/^\d{4}-\d{2}-\d{2}$/.test(t.date))throw Error('비교 거래를 확인해주세요.');return {date:t.date,price:t.price,area:t.area,floor:t.floor,cancelled:!!t.cancelled};});
-    return {notes:notes(l.notes),pinned:l.pinned!==false,id:l.id,label:l.label,complexId:l.complexId,price:l.price,area:l.area,floor:l.floor,url:l.url||'',observedDate:l.observedDate,trades};
+    if(l.sourceObservedAt!=null&&(typeof l.sourceObservedAt!=='string'||!/^\d{4}-\d{2}-\d{2}T/.test(l.sourceObservedAt)||!Number.isFinite(Date.parse(l.sourceObservedAt))))throw Error('매물 관찰 시각을 확인해주세요.');
+    return {source:l.source==='naver-snapshot'?'naver-snapshot':'manual',sourceObservedAt:l.sourceObservedAt||null,notes:notes(l.notes),pinned:l.pinned!==false,id:l.id,label:l.label,complexId:l.complexId,price:l.price,area:l.area,floor:l.floor,url:l.url||'',observedDate:l.observedDate,trades};
   });
   if(new Set(listings.map(l=>l.id)).size!==listings.length)throw Error('매물 ID가 중복됩니다.');
   return {schemaVersion:2,complexes,regions:input.regions,filters:{tradeType:'sale',propertyType:'apartment',minExclusiveAreaM2:filters.minExclusiveAreaM2,minHouseholds:filters.minHouseholds,minFloor:filters.minFloor,discountThreshold:filters.discountThreshold,unknownFloorAction:'review_without_alert'},listings,alertSettings:{enabled:false}};

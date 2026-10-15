@@ -7,7 +7,8 @@
     "start": "node server.mjs",
     "build": "node scripts/build-pages.mjs",
     "test": "node --test tests/*.test.mjs",
-    "observe": "node scripts/observe.mjs"
+    "observe": "node scripts/observe.mjs",
+    "import:snapshot": "node scripts/import-snapshot.mjs"
   },
   "engines": {
     "node": ">=24"

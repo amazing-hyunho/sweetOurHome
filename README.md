@@ -10,6 +10,8 @@ https://amazing-hyunho.github.io/sweetOurHome/
 
 PC에서는 `npm run observe`로 공동 목록의 가격 변화를 SQLite에 기록합니다. `observe.cmd`는 5분마다 확인하고, `npm run observe -- --history`로 가격 기록을 확인합니다. Telegram은 PC 전용 설정과 `--send` 옵션이 있어야 전송합니다. [PC 관찰 안내](docs/observer.md)
 
+사용자가 제공한 매물 JSON은 `npm run import:snapshot`으로 미리보기/병합할 수 있습니다. 메모·찜·목표 가격을 보존하며, 실제 저장에는 명시적인 `--write` 옵션이 필요합니다. 이 기능은 사이트 자동 수집을 수행하지 않습니다. [스냅샷 반영 안내](docs/snapshot-import.md)
+
 ## 개발
 
 Node.js 24 이상. npm start로 PC 서버를 실행하고 http://127.0.0.1:4310 에 접속합니다. npm test로 테스트하고 npm run build로 GitHub Pages용 dist를 생성합니다.
