@@ -13,7 +13,7 @@ spec.loader.exec_module(c)
 class FakePage:
     url='https://fin.land.naver.com/complexes/8692'
     def __init__(self,rate=False):
-        self.gotos=0; self.reloads=0; self.closed=False; self.rate=rate
+        self.gotos=0; self.reloads=0; self.closed=False; self.rate=rate; self.sale_clicks=0
     def on(self,event,handler): self.handler=handler
     def remove_listener(self,event,handler): self.handler=None
     def reload(self,**kwargs):
@@ -24,6 +24,12 @@ class FakePage:
     def evaluate(self,*args): return [{'text':'card','url':'https://fin.land.naver.com/articles/1'}]
     def wait_for_timeout(self,*args): pass
     def locator(self,*args): return self
+    def get_by_role(self,role,**kwargs):
+        assert role=='button'
+        assert kwargs['name'].match('매매8')
+        return self
+    def wait_for(self,**kwargs): pass
+    def click(self,**kwargs): self.sale_clicks+=1
     @property
     def last(self): return self
     def scroll_into_view_if_needed(self,**kwargs): pass
@@ -48,9 +54,22 @@ class CollectorTests(unittest.TestCase):
             self.assertEqual(len(result['rows']),1)
             self.assertEqual(page.reloads,0)
             self.assertEqual(page.gotos,0)
+            self.assertEqual(page.sale_clicks,1)
             c.collect(None,{'url':'https://naver.me/abc'},refresh=True)
             self.assertEqual(page.reloads,1)
         self.assertFalse(page.closed)
+
+    def test_market_price_link_opens_sale_list_before_reading_cards(self):
+        page=FakePage()
+        original=page.evaluate
+        def read_cards(*args):
+            self.assertEqual(page.sale_clicks,1)
+            return original(*args)
+        page.evaluate=read_cards
+        with patch.object(c,'choose_page',return_value=(page,True)):
+            result=c.collect(None,{'url':'https://naver.me/abc'})
+        self.assertEqual(page.gotos,1)
+        self.assertEqual(len(result['rows']),1)
 
     def test_429_saved_before_return_and_user_tab_preserved(self):
         page=FakePage(rate=True)

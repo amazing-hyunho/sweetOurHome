@@ -2,6 +2,7 @@
 import argparse
 import json
 import os
+import re
 from pathlib import Path
 import shutil
 import socket
@@ -110,6 +111,20 @@ def choose_page(context, complex_info):
     return page,True
 
 
+def select_sale_list(page,check):
+    # The complex header's sale-count button opens the article tab with all
+    # sale areas, even when a shared link initially points at market prices.
+    sale=page.get_by_role('button',name=re.compile(r'^매매\s*[\d,]+$'))
+    try:
+        sale.wait_for(state='visible',timeout=20000)
+    except Exception as exc:
+        check()
+        raise RuntimeError('단지의 매매 목록 버튼을 찾지 못했습니다. 단지 링크인지 확인해주세요.') from exc
+    check()
+    sale.click(timeout=10000)
+    check()
+
+
 def collect(context, complex_info, refresh=False):
     valid_url(complex_info['url'])
     page,created=choose_page(context,complex_info)
@@ -137,6 +152,7 @@ def collect(context, complex_info, refresh=False):
         elif refresh:
             page.reload(wait_until='domcontentloaded',timeout=45000)
         check()
+        select_sale_list(page,check)
         # First run deliberately reads the already open page without reloading.
         for _ in range(60):
             check()
@@ -145,7 +161,7 @@ def collect(context, complex_info, refresh=False):
                 break
             page.wait_for_timeout(500)
         else:
-            raise RuntimeError('개별 매매 카드가 없습니다. 매물 탭의 매매 목록을 열어주세요.')
+            raise RuntimeError('매매 목록을 열었지만 개별 매물 링크를 확인하지 못했습니다. 묶음 매물만 있거나 로딩에 실패했을 수 있습니다.')
         found={}
         stable=0
         for _ in range(30):
