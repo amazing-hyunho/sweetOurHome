@@ -96,15 +96,10 @@ def open_browser():
 
 
 def choose_page(context, complex_info):
-    candidates=[]
-    for page in context.pages:
-        if urlsplit(page.url).hostname!='fin.land.naver.com':
-            continue
-        headings=page.locator('h2,h3').all_text_contents()
-        if complex_info['name'] in [s.strip() for s in headings]:
-            candidates.append(page)
+    # Display names are user aliases. Only the saved URL selects a source.
+    candidates=[page for page in context.pages if page.url==complex_info['url']]
     if len(candidates)>1:
-        raise RuntimeError('같은 단지 탭이 여러 개입니다. 수집할 탭 하나만 남겨주세요.')
+        return candidates[0],False
     if candidates:
         return candidates[0],False
     page=context.new_page()
@@ -121,6 +116,13 @@ def select_sale_list(page,check):
         check()
         raise RuntimeError('단지의 매매 목록 버튼을 찾지 못했습니다. 단지 링크인지 확인해주세요.') from exc
     check()
+    # Server-rendered placeholders say 매매0 before the click handlers/data load.
+    # Wait for a real count before choosing the list; a genuine zero stays bounded.
+    for _ in range(20):
+        if re.search(r'[1-9]',sale.inner_text()):
+            break
+        page.wait_for_timeout(500)
+        check()
     sale.click(timeout=10000)
     check()
 
@@ -129,7 +131,6 @@ def collect(context, complex_info, refresh=False):
     valid_url(complex_info['url'])
     page,created=choose_page(context,complex_info)
     limited=[]
-    succeeded=False
 
     def response_received(response):
         if response.status==429 and urlsplit(response.url).hostname=='fin.land.naver.com':
@@ -175,14 +176,17 @@ def collect(context, complex_info, refresh=False):
             page.locator(CARD_SELECTOR).last.scroll_into_view_if_needed(timeout=5000)
             page.wait_for_timeout(1500)
         check()
-        succeeded=True
-        return {'observedAt':datetime.now(timezone.utc).isoformat(),'rows':list(found.values())}
+        detail_names={s.strip() for s in page.locator('h3').all_text_contents() if s.strip()}
+        source_names=list(dict.fromkeys(s.strip() for s in page.locator('h2').all_text_contents() if s.strip() in detail_names))
+        if len(source_names)!=1:
+            raise RuntimeError('링크 화면의 실제 단지명을 확인하지 못했습니다.')
+        return {'observedAt':datetime.now(timezone.utc).isoformat(),'rows':list(found.values()),'requestedUrl':complex_info['url'],'complexName':source_names[0]}
     except Exception:
         check()
         raise
     finally:
         page.remove_listener('response',response_received)
-        if created and not succeeded:
+        if created:
             page.close()
         # User-owned tabs and browser are never closed.
 

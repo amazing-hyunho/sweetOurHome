@@ -13,7 +13,14 @@ export async function saveResult(request,{read=readSharedDocument,commit=commitS
     let next=before.state;
     let error=request.error||'',count=complex.collection?.count||0;
     if(!error){
-      try{const result=mergeSnapshot(next,complex.id,request.snapshot);count=result.summary.resolved;if(!count)throw Error('개별 매물을 확인하지 못했습니다.');next=result.state;}
+      try{
+        let expectedComplexName;
+        if(request.snapshot?.complexName!==undefined){
+          if(request.snapshot.requestedUrl!==request.url||typeof request.snapshot.complexName!=='string'||!request.snapshot.complexName.trim()||request.snapshot.complexName.length>500)throw Error('수집 링크와 실제 단지명 확인 정보가 일치하지 않습니다.');
+          expectedComplexName=request.snapshot.complexName;
+        }
+        const result=mergeSnapshot(next,complex.id,request.snapshot,{expectedComplexName});count=result.summary.resolved;if(!count)throw Error('개별 매물을 확인하지 못했습니다.');next=result.state;
+      }
       catch(e){error=e.message;}
     }
     const collection={attemptedAt:new Date().toISOString(),lastSuccessAt:error?complex.collection?.lastSuccessAt||null:request.snapshot.observedAt,status:error?'error':'partial',count,error:error.slice(0,500)};

@@ -23,3 +23,15 @@ test('Python bridge rejects wrong complex data and records error without adding 
   const result=await saveResult(r,{read:async()=>({state}),commit:async(p,b,n)=>{state=n;}});
   assert.equal(result.status,'error');assert.equal(state.listings.length,0);
 });
+
+test('link-bound source name allows aliases without changing display name',async()=>{
+  let state=seed();state.complexes[0].name='내 별칭';
+  const r=request();r.snapshot.complexName='테스트';r.snapshot.requestedUrl=url;
+  const result=await saveResult(r,{read:async()=>({state}),commit:async(p,b,n)=>{state=n;}});
+  assert.equal(result.status,'partial');assert.equal(state.complexes[0].name,'내 별칭');assert.equal(state.listings[0].complexId,'c');
+});
+test('snapshot from a different link cannot use source name override',async()=>{
+  let state=seed();const r=request();r.snapshot.complexName='테스트';r.snapshot.requestedUrl='https://naver.me/other';
+  const result=await saveResult(r,{read:async()=>({state}),commit:async(p,b,n)=>{state=n;}});
+  assert.equal(result.status,'error');assert.equal(state.listings.length,0);
+});

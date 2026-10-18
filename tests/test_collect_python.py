@@ -24,12 +24,14 @@ class FakePage:
     def evaluate(self,*args): return [{'text':'card','url':'https://fin.land.naver.com/articles/1'}]
     def wait_for_timeout(self,*args): pass
     def locator(self,*args): return self
+    def all_text_contents(self): return ['실제단지명']
     def get_by_role(self,role,**kwargs):
         assert role=='button'
         assert kwargs['name'].match('매매8')
         return self
     def wait_for(self,**kwargs): pass
     def click(self,**kwargs): self.sale_clicks+=1
+    def inner_text(self): return '매매8'
     @property
     def last(self): return self
     def scroll_into_view_if_needed(self,**kwargs): pass
@@ -37,6 +39,10 @@ class FakePage:
 
 
 class CollectorTests(unittest.TestCase):
+    def test_tab_selection_uses_url_instead_of_alias(self):
+        page=FakePage()
+        context=type('Context',(),{'pages':[page]})()
+        self.assertEqual(c.choose_page(context,{'url':page.url,'name':'내가 정한 별명'}),(page,False))
     def test_link_validation(self):
         c.valid_url('https://naver.me/abc')
         for url in ['https://evil.com','http://naver.me/abc','https://naver.me.evil.com','https://user:pass@naver.me']:
@@ -52,6 +58,8 @@ class CollectorTests(unittest.TestCase):
         with patch.object(c,'choose_page',return_value=(page,False)):
             result=c.collect(None,{'url':'https://naver.me/abc'})
             self.assertEqual(len(result['rows']),1)
+            self.assertEqual(result['complexName'],'실제단지명')
+            self.assertEqual(result['requestedUrl'],'https://naver.me/abc')
             self.assertEqual(page.reloads,0)
             self.assertEqual(page.gotos,0)
             self.assertEqual(page.sale_clicks,1)
@@ -70,6 +78,16 @@ class CollectorTests(unittest.TestCase):
             result=c.collect(None,{'url':'https://naver.me/abc'})
         self.assertEqual(page.gotos,1)
         self.assertEqual(len(result['rows']),1)
+
+    def test_global_service_heading_is_not_a_complex_name(self):
+        page=FakePage()
+        original=page.locator
+        class Headings:
+            def __init__(self,texts): self.texts=texts
+            def all_text_contents(self): return self.texts
+        page.locator=lambda selector:Headings(['페이 서비스메뉴','실제단지명'] if selector=='h2' else ['실제단지명','매물 8개']) if selector in ('h2','h3') else original(selector)
+        with patch.object(c,'choose_page',return_value=(page,False)):
+            self.assertEqual(c.collect(None,{'url':'https://naver.me/abc'})['complexName'],'실제단지명')
 
     def test_429_saved_before_return_and_user_tab_preserved(self):
         page=FakePage(rate=True)
