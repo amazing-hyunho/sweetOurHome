@@ -23,7 +23,14 @@ export function cleanState(input){
     if(!text(c.id)||!text(c.name)||!c.name.trim()||!num(c.households,0,100000)||!link(c.complexUrl)||c.targetPrice!=null&&!num(c.targetPrice,0,10000000))throw Error('단지 정보를 확인해주세요.');
     const targets=c.targets??[];
     if(!Array.isArray(targets)||targets.length>100||targets.some(t=>!num(t.area,1,1000)||!num(t.price,1,10000000))||new Set(targets.map(t=>t.area)).size!==targets.length)throw Error('면적별 목표 가격을 확인해주세요.');
-    return {notes:notes(c.notes),targets:targets.map(t=>({area:t.area,price:t.price})),id:c.id,name:c.name,address:text(c.address)?c.address:'',households:c.households,approvalDate:text(c.approvalDate)?c.approvalDate:'',complexUrl:c.complexUrl||'',targetPrice:c.targetPrice||0,source:c.source==='naver'?'naver':'manual',observedDate:text(c.observedDate)?c.observedDate:'',collectionEnabled:false};
+    let collection=null;
+    if(c.collection){
+      const s=c.collection;
+      const timestamp=v=>typeof v==='string'&&/^\d{4}-\d{2}-\d{2}T/.test(v)&&Number.isFinite(Date.parse(v));
+      if(!timestamp(s.attemptedAt)||s.lastSuccessAt!==null&&!timestamp(s.lastSuccessAt)||!['partial','error'].includes(s.status)||!num(s.count,0,5000)||!text(s.error))throw Error('수집 상태 형식을 확인해주세요.');
+      collection={attemptedAt:s.attemptedAt,lastSuccessAt:s.lastSuccessAt,status:s.status,count:s.count,error:s.error};
+    }
+    return {notes:notes(c.notes),targets:targets.map(t=>({area:t.area,price:t.price})),id:c.id,name:c.name,address:text(c.address)?c.address:'',households:c.households,approvalDate:text(c.approvalDate)?c.approvalDate:'',complexUrl:c.complexUrl||'',targetPrice:c.targetPrice||0,source:c.source==='naver'?'naver':'manual',observedDate:text(c.observedDate)?c.observedDate:'',collectionEnabled:c.collectionEnabled!==false,collection};
   });
   if(new Set(complexes.map(c=>c.id)).size!==complexes.length)throw Error('단지 ID가 중복됩니다.');
   const listings=input.listings.map(l=>{

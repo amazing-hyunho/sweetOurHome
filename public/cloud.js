@@ -29,8 +29,8 @@ export async function setupCloud() {
       return {...cleanState({complexes:[],regions:[],listings:[],filters:{minExclusiveAreaM2:59,minHouseholds:400,minFloor:3,discountThreshold:.05}}),runtime:runtime()};
     },
     async save(state, expectedRevision) {
-      // This first shared version is a bounded watchlist document. Automated
-      // listings/history must use separate collections before collection ships.
+      // The PC collector shares this bounded document using revision + CAS.
+      // Capacity errors preserve existing data; history lives on the PC.
       if(new TextEncoder().encode(JSON.stringify(state)).length>700000)throw Error('공동 목록 저장 용량에 가까워졌어요. JSON 백업 후 불필요한 기록을 정리해주세요.');
       const nextRevision = await dbSDK.runTransaction(db, async transaction => {
         const snapshot = await transaction.get(ref);
