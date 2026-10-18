@@ -48,7 +48,7 @@ const server = http.createServer(async (req,res) => {
       res.writeHead(405); res.end('{}'); return;
     }
     if (req.method !== 'GET') { res.writeHead(405); res.end(); return; }
-    const files = { '/':'public/index.html', '/app.js':'public/app.js', '/storage.js':'public/storage.js', '/cloud.js':'public/cloud.js', '/firebase-config.js':'public/firebase-config.js', '/style.css':'public/style.css', '/listings.mjs':'lib/listings.mjs', '/merge-snapshot.mjs':'lib/merge-snapshot.mjs', '/naver-snapshot.mjs':'lib/naver-snapshot.mjs' };
+    const files = { '/daily-history.js':'public/daily-history.js', '/':'public/index.html', '/app.js':'public/app.js', '/storage.js':'public/storage.js', '/cloud.js':'public/cloud.js', '/firebase-config.js':'public/firebase-config.js', '/style.css':'public/style.css', '/listings.mjs':'lib/listings.mjs', '/merge-snapshot.mjs':'lib/merge-snapshot.mjs', '/naver-snapshot.mjs':'lib/naver-snapshot.mjs' };
     const file = files[url.pathname]; if (!file) { res.writeHead(404); res.end('Not found'); return; }
     res.setHeader('Content-Type',mime[path.extname(file)]); res.end(await readFile(path.join(root,file)));
   } catch(err) { res.writeHead(400,{'Content-Type':'application/json; charset=utf-8'}); res.end(JSON.stringify({error:err.message})); }

@@ -1,3 +1,4 @@
+import {cleanHistory} from './daily-history.js';
 const KEY='sweetOurHome:v1';
 export const browserMode=!(globalThis.location?.hostname==='127.0.0.1' && globalThis.location?.port==='4310');
 export function cleanState(input){
@@ -30,7 +31,7 @@ export function cleanState(input){
       if(!timestamp(s.attemptedAt)||s.lastSuccessAt!==null&&!timestamp(s.lastSuccessAt)||!['partial','error'].includes(s.status)||!num(s.count,0,5000)||!text(s.error))throw Error('수집 상태 형식을 확인해주세요.');
       collection={attemptedAt:s.attemptedAt,lastSuccessAt:s.lastSuccessAt,status:s.status,count:s.count,error:s.error};
     }
-    return {notes:notes(c.notes),targets:targets.map(t=>({area:t.area,price:t.price})),id:c.id,name:c.name,address:text(c.address)?c.address:'',households:c.households,approvalDate:text(c.approvalDate)?c.approvalDate:'',complexUrl:c.complexUrl||'',targetPrice:c.targetPrice||0,source:c.source==='naver'?'naver':'manual',observedDate:text(c.observedDate)?c.observedDate:'',collectionEnabled:c.collectionEnabled!==false,collection};
+    return {dailyHistory:cleanHistory(c.dailyHistory,c.complexUrl||''),notes:notes(c.notes),targets:targets.map(t=>({area:t.area,price:t.price})),id:c.id,name:c.name,address:text(c.address)?c.address:'',households:c.households,approvalDate:text(c.approvalDate)?c.approvalDate:'',complexUrl:c.complexUrl||'',targetPrice:c.targetPrice||0,source:c.source==='naver'?'naver':'manual',observedDate:text(c.observedDate)?c.observedDate:'',collectionEnabled:c.collectionEnabled!==false,collection};
   });
   if(new Set(complexes.map(c=>c.id)).size!==complexes.length)throw Error('단지 ID가 중복됩니다.');
   const listings=input.listings.map(l=>{

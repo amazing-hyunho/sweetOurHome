@@ -20,6 +20,8 @@ test('merge matches manual URL, preserves notes/pins/targets/trades and never de
   assert.deepEqual(merged.state.complexes[0].targets,[{area:84.85,price:120000}]);
   assert.deepEqual(merged.state.complexes[0].notes,[note]);
   assert.equal(merged.stats.skippedGroups,1);
+  assert.deepEqual(merged.state.complexes[0].dailyHistory.days[0].groups,[{area:84.85,min:120000,max:120000,count:2}]);
+  assert.equal(merged.state.complexes[0].dailyHistory.days[0].date,'2026-10-12');
   const repeated=mergeSnapshot(merged.state,'c',snapshot());
   assert.equal(repeated.stats.added,0);assert.equal(repeated.stats.updated,0);
 });
