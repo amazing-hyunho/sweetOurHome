@@ -8,7 +8,7 @@ const state=()=>({complexes:[{id:'c',name:'테스트아파트',households:500,no
 const card=(id='123',floor='17')=>({text:`테스트아파트 201동\n매매 12억\n아파트108㎡ (전용84.85)${floor}/20층동향`,url:id?`/articles/${id}`:null});
 const snapshot=()=>({observedAt:'2026-10-12T00:00:00Z',expectedCount:3,rows:[card(),card('456','중'),card(null,'고')]});
 
-test('merge matches manual URL, preserves notes/pins/targets/trades and never deletes absent records',()=>{
+test('merge matches manual URL, preserves notes/pins/targets/trades and replaces absent records',()=>{
   const input=state(),untouched=structuredClone(input);
   const merged=mergeSnapshot(input,'c',snapshot());
   assert.deepEqual(input,untouched);
@@ -16,7 +16,8 @@ test('merge matches manual URL, preserves notes/pins/targets/trades and never de
   assert.equal(old.price,120000);assert.equal(old.label,'직접 남긴 설명');assert.equal(old.pinned,true);assert.deepEqual(old.notes,[note]);
   assert.equal(merged.state.listings.find(l=>l.id==='naver:456').pinned,false);
   assert.equal(merged.state.listings.find(l=>l.id==='naver:456').floor,null);
-  assert.ok(merged.state.listings.find(l=>l.id==='keep'));
+  assert.equal(merged.state.listings.find(l=>l.id==='keep'),undefined);
+  assert.equal(merged.stats.removed,1);
   assert.deepEqual(merged.state.complexes[0].targets,[{area:84.85,price:120000}]);
   assert.deepEqual(merged.state.complexes[0].notes,[note]);
   assert.equal(merged.stats.skippedGroups,1);
@@ -58,4 +59,15 @@ test('concurrent edit conflict is surfaced without overwriting or retrying',asyn
   let calls=0;
   await assert.rejects(commitSharedState('test-project',{revision:8,updateTime:'old'},state(),async()=>{calls++;return {ok:false,status:409};}),/다른 기기/);
   assert.equal(calls,1);
+});
+
+test('replacement retains other complexes and past graph days, rejects older disjoint snapshots',()=>{
+  const first=mergeSnapshot(state(),'c',snapshot()).state;
+  first.complexes.push({id:'other',name:'다른단지',households:0});
+  first.listings.push({...first.listings[0],id:'other-listing',complexId:'other',url:''});
+  const second=mergeSnapshot(first,'c',{observedAt:'2026-10-13T00:00:00Z',rows:[card('789')]}).state;
+  assert.deepEqual(second.listings.filter(l=>l.complexId==='c').map(l=>l.id),['naver:789']);
+  assert.ok(second.listings.find(l=>l.id==='other-listing'));
+  assert.equal(second.complexes[0].dailyHistory.days.length,2);
+  assert.throws(()=>mergeSnapshot(second,'c',{observedAt:'2026-10-12T01:00:00Z',rows:[card('999')]}),/오래된/);
 });
