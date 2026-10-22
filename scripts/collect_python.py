@@ -200,6 +200,11 @@ def wait_until_next(seconds):
     return not STOP.exists()
 
 
+def browser_connection_closed(browser, error=None):
+    return (not browser.is_connected() or not browser.contexts or
+            (error is not None and 'has been closed' in str(error)))
+
+
 def run(watch=False,refresh_first=False):
     from playwright.sync_api import sync_playwright
     # OS releases this lock on exit; no stale PID files, no killing processes.
@@ -215,6 +220,9 @@ def run(watch=False,refresh_first=False):
             context=browser.contexts[0]
             first=not refresh_first
             while not STOP.exists():
+                if browser_connection_closed(browser):
+                    print('브라우저 연결 종료: 자동 실행 관리자가 새 연결로 재시작합니다.',file=sys.stderr,flush=True)
+                    return 1
                 remaining=cooldown_remaining()
                 if remaining:
                     print(f'조회 제한 대기: {remaining/60:.0f}분 남음',flush=True)
@@ -239,6 +247,9 @@ def run(watch=False,refresh_first=False):
                             failed=True
                             limited=isinstance(exc,RateLimited)
                             result=bridge('save',id=info['id'],url=info['url'],error=str(exc)[:500])
+                            if browser_connection_closed(browser,exc):
+                                print('브라우저 연결 종료: 수집기를 재시작합니다.',file=sys.stderr,flush=True)
+                                return 1
                         if result.get('status')=='error':
                             failed=True
                         print(info['name']+': '+json.dumps(result,ensure_ascii=False),flush=True)

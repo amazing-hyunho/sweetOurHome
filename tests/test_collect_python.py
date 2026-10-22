@@ -99,3 +99,16 @@ class CollectorTests(unittest.TestCase):
 
 
 if __name__=='__main__': unittest.main()
+
+
+class BrowserRecoveryTests(unittest.TestCase):
+    def test_closed_connection_or_context_requests_restart(self):
+        browser=type('Browser',(),{'is_connected':lambda self:True,'contexts':[object()]})()
+        self.assertFalse(c.browser_connection_closed(browser))
+        self.assertFalse(c.browser_connection_closed(browser,RuntimeError('HTTP 429')))
+        self.assertTrue(c.browser_connection_closed(browser,RuntimeError('Target page, context or browser has been closed')))
+        browser.contexts=[]
+        self.assertTrue(c.browser_connection_closed(browser))
+        browser.contexts=[object()]
+        browser.is_connected=lambda:False
+        self.assertTrue(c.browser_connection_closed(browser))
