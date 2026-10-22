@@ -191,11 +191,15 @@ def collect(context, complex_info, refresh=False):
         # User-owned tabs and browser are never closed.
 
 
-def wait_until_next(seconds):
+def wait_until_next(seconds, health_check=None):
     deadline=time.monotonic()+seconds
+    next_health=0
     while time.monotonic()<deadline:
         if STOP.exists():
             return False
+        if health_check and time.monotonic()>=next_health:
+            health_check()
+            next_health=time.monotonic()+5
         time.sleep(min(1,max(0,deadline-time.monotonic())))
     return not STOP.exists()
 
@@ -203,6 +207,13 @@ def wait_until_next(seconds):
 def browser_connection_closed(browser, error=None):
     return (not browser.is_connected() or not browser.contexts or
             (error is not None and 'has been closed' in str(error)))
+
+
+def verify_browser_identity(browser, websocket_url):
+    # The HTTP port may belong to a NEW Chrome while Playwright retains the old one.
+    if (browser_connection_closed(browser) or
+            check_endpoint().get('webSocketDebuggerUrl') != websocket_url):
+        raise RuntimeError('브라우저 연결이 변경되었습니다. 새 연결로 자동 재시작합니다.')
 
 
 def run(watch=False,refresh_first=False):
@@ -214,12 +225,14 @@ def run(watch=False,refresh_first=False):
         except OSError as exc:
             raise RuntimeError('파이썬 수집기가 이미 실행 중이거나 잠금 포트 9224를 사용 중입니다.') from exc
         STOP.unlink(missing_ok=True)
-        check_endpoint()
+        websocket_url=check_endpoint()['webSocketDebuggerUrl']
         with sync_playwright() as playwright:
-            browser=playwright.chromium.connect_over_cdp(ENDPOINT)
+            browser=playwright.chromium.connect_over_cdp(websocket_url,timeout=15000)
             context=browser.contexts[0]
+            health_check=lambda:verify_browser_identity(browser,websocket_url)
             first=not refresh_first
             while not STOP.exists():
+                health_check()
                 if browser_connection_closed(browser):
                     print('브라우저 연결 종료: 자동 실행 관리자가 새 연결로 재시작합니다.',file=sys.stderr,flush=True)
                     return 1
@@ -228,7 +241,7 @@ def run(watch=False,refresh_first=False):
                     print(f'조회 제한 대기: {remaining/60:.0f}분 남음',flush=True)
                     if not watch:
                         return 1
-                    if not wait_until_next(min(remaining,60)):
+                    if not wait_until_next(min(remaining,60),health_check):
                         break
                     continue
                 failed=False
@@ -239,6 +252,7 @@ def run(watch=False,refresh_first=False):
                     for info in complexes:
                         if STOP.exists():
                             break
+                        health_check()
                         limited=False
                         try:
                             snapshot=collect(context,info,refresh=not first)
@@ -262,7 +276,7 @@ def run(watch=False,refresh_first=False):
                 if not watch:
                     return int(failed)
                 print('다음 수집까지 10분 대기합니다. 종료: Ctrl+C',flush=True)
-                if not wait_until_next(600):
+                if not wait_until_next(600,health_check):
                     break
             # Do not browser.close(): this is a manually opened browser.
             print('반복 수집을 종료했습니다. 브라우저는 그대로 둡니다.',flush=True)

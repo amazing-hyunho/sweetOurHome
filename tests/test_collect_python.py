@@ -98,7 +98,7 @@ class CollectorTests(unittest.TestCase):
         self.assertFalse(page.closed)
 
 
-if __name__=='__main__': unittest.main()
+
 
 
 class BrowserRecoveryTests(unittest.TestCase):
@@ -112,3 +112,17 @@ class BrowserRecoveryTests(unittest.TestCase):
         browser.contexts=[object()]
         browser.is_connected=lambda:False
         self.assertTrue(c.browser_connection_closed(browser))
+
+    def test_reopened_browser_identity_cannot_reuse_old_context(self):
+        browser=type('Browser',(),{'is_connected':lambda self:True,'contexts':[object()]})()
+        with patch.object(c,'check_endpoint',return_value={'webSocketDebuggerUrl':'old'}):
+            c.verify_browser_identity(browser,'old')
+        with patch.object(c,'check_endpoint',return_value={'webSocketDebuggerUrl':'new'}):
+            with self.assertRaises(RuntimeError): c.verify_browser_identity(browser,'old')
+
+    def test_idle_wait_checks_health_without_waiting_ten_minutes(self):
+        with TemporaryDirectory() as directory, patch.object(c,'STOP',Path(directory)/'stop'):
+            with self.assertRaisesRegex(RuntimeError,'disconnected'):
+                c.wait_until_next(600,lambda:(_ for _ in ()).throw(RuntimeError('disconnected')))
+
+if __name__=='__main__': unittest.main()
