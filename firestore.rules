@@ -1,6 +1,17 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Same public collaboration policy, scoped to official public presale data.
+    match /households/home/feeds/presales {
+      allow get: if true;
+      allow list, delete: if false;
+      allow create, update: if request.resource.data.keys().hasOnly(['payload','revision','updatedBy','updatedAt'])
+        && request.resource.data.payload is string && request.resource.data.payload.size() <= 200000
+        && request.resource.data.updatedBy == 'public' && request.resource.data.updatedAt == request.time
+        && request.resource.data.revision is int
+        && ((!exists(/databases/$(database)/documents/households/home/feeds/presales) && request.resource.data.revision == 1)
+          || (exists(/databases/$(database)/documents/households/home/feeds/presales) && request.resource.data.revision == resource.data.revision + 1));
+    }
     // Public collaboration explicitly selected by the owner.
     // All other documents, including members, remain inaccessible.
     match /households/home {

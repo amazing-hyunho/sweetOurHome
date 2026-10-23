@@ -10,6 +10,7 @@ $env:PYTHONUTF8 = '1'
 $nodePath = (Get-Command node -ErrorAction Stop).Source
 $pythonPath = Join-Path $repoRoot '.venv/Scripts/python.exe'
 $lastDigestMinute = ''
+$lastPresaleHour = ''
 function Port-Open([int]$port) {
     # Python's singleton socket is bound but intentionally does not listen.
     if ($port -eq 9224) { return [bool](Get-NetTCPConnection -LocalPort 9224 -ErrorAction SilentlyContinue | Where-Object { $_.State -in @('Bound','Listen') }) }
@@ -36,6 +37,11 @@ try {
             }
             $korea = [TimeZoneInfo]::ConvertTimeBySystemTimeZoneId([DateTime]::UtcNow, 'Korea Standard Time')
             $minute = $korea.ToString('yyyy-MM-dd HH:mm')
+            $presaleHour = $korea.ToString('yyyy-MM-dd HH')
+            if ($presaleHour -ne $lastPresaleHour -and (Test-Path (Join-Path $env:LOCALAPPDATA 'sweetOurHome/presales/api.json'))) {
+                $lastPresaleHour = $presaleHour
+                Start-Worker $nodePath @(('"'+(Join-Path $PSScriptRoot 'collect-presales.mjs')+'"'),'--auto') 'presales' | Out-Null
+            }
             if ($korea.Hour -eq 12 -and $korea.Minute -lt 30 -and $minute -ne $lastDigestMinute) {
                 $lastDigestMinute = $minute
                 $digest = Start-Worker $nodePath @(('"'+(Join-Path $PSScriptRoot 'daily-digest.mjs')+'"')) 'digest'
