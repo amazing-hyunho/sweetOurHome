@@ -1,9 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { evaluateListing } from '../lib/listings.mjs';
+import { evaluateListing,lowestPriceListings } from '../lib/listings.mjs';
 const filters = { minExclusiveAreaM2:59, minHouseholds:400, minFloor:3, discountThreshold:.05 };
 const complex = { households:710 };
 const date = new Date('2026-10-10');
+test('dashboard keeps ties per complex and area and ignores older collection batches',()=>{
+  const row=(id,complexId,area,price,at='2026-10-23T01:00:00Z')=>({id,complexId,area,price,source:'naver-snapshot',sourceObservedAt:at});
+  const rows=[row('old','a',84,1,'2026-10-22T01:00:00Z'),row('one','a',84,100),row('tie','a',84,100),row('high','a',84,110),row('small','a',59,80),row('other','b',84,120)];
+  assert.deepEqual(lowestPriceListings(rows).map(l=>l.id),['one','tie','small','other']);
+  assert.equal(rows.length,6);
+  assert.deepEqual(lowestPriceListings([]),[]);
+});
 const trades = [
   {date:'2026-08-01',price:70000,area:84.99,floor:5},
   {date:'2026-09-01',price:71000,area:84.99,floor:8},

@@ -41,7 +41,9 @@ export function cleanState(input){
     return {source:l.source==='naver-snapshot'?'naver-snapshot':'manual',sourceObservedAt:l.sourceObservedAt||null,notes:notes(l.notes),pinned:l.pinned!==false,id:l.id,label:l.label,complexId:l.complexId,price:l.price,area:l.area,floor:l.floor,url:l.url||'',observedDate:l.observedDate,trades};
   });
   if(new Set(listings.map(l=>l.id)).size!==listings.length)throw Error('매물 ID가 중복됩니다.');
-  return {schemaVersion:2,complexes,regions:input.regions,filters:{tradeType:'sale',propertyType:'apartment',minExclusiveAreaM2:filters.minExclusiveAreaM2,minHouseholds:filters.minHouseholds,minFloor:filters.minFloor,discountThreshold:filters.discountThreshold,unknownFloorAction:'review_without_alert'},listings,alertSettings:{enabled:false}};
+  const favorites=input.alertSettings?.presaleFavorites??[];
+  if(!Array.isArray(favorites)||favorites.length>500||favorites.some(id=>typeof id!=='string'||!/^\d{1,20}:\d{1,20}$/.test(id)))throw Error('분양 선호 목록을 확인해주세요.');
+  return {schemaVersion:2,complexes,regions:input.regions,filters:{tradeType:'sale',propertyType:'apartment',minExclusiveAreaM2:filters.minExclusiveAreaM2,minHouseholds:filters.minHouseholds,minFloor:filters.minFloor,discountThreshold:filters.discountThreshold,unknownFloorAction:'review_without_alert'},listings,alertSettings:{enabled:false,presaleFavorites:[...new Set(favorites)]}};
 }
 let cloud=null;
 export function connectCloud(adapter){cloud=adapter;}
