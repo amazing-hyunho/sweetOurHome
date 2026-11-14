@@ -21,9 +21,10 @@ COOLDOWN = DATA / 'cooldown.json'  # shared with the Node collector, millisecond
 STOP = DATA / 'python-stop'
 ENDPOINT = 'http://127.0.0.1:9223'
 CARD_SELECTOR = 'li[class*="ArticleCard-"]'
-CARDS = """() => Array.from(document.querySelectorAll('a[href*="/articles/"]')).flatMap(a=>{
+CARDS = r"""() => Array.from(document.querySelectorAll('a[href*="/articles/"]')).flatMap(a=>{
  const c=a.closest('li[class*="ArticleCard-"]');
- if(!c || !c.innerText.includes('매매') || !c.innerText.includes('전용') || c.querySelectorAll('a[href*="/articles/"]').length!==1)return [];
+ if(!c || !c.innerText.includes('매매') || !c.innerText.includes('전용') || new Set(Array.from(c.querySelectorAll('a[href*="/articles/"]'),link=>link.href)).size!==1)return [];
+ if(c.innerText.includes('매물목록 펼치기') || /중개사\s*\d+곳에서 등록/.test(c.innerText))return [];
  return [{text:c.innerText,url:a.href}];
 })"""
 
