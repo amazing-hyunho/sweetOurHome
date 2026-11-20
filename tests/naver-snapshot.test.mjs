@@ -6,6 +6,23 @@ test('Korean sale prices convert to units of ten thousand won',()=>{
   for(const [raw,expected] of [['12억',120000],['12억 3,000',123000],['10억',100000],['9,500',9500],['9,500만',9500]])assert.equal(parseSalePrice(raw),expected);
   assert.throws(()=>parseSalePrice('협의'));assert.throws(()=>parseSalePrice('0억'));
 });
+
+test('changed-price badges are decoration, including actual failed apartment price formats',()=>{
+  for(const [raw,expected,direction] of [['10억 9,000변동',109000,'하락'],['11억변동',110000,'상승'],['12억 6,158변동',126158,'상승'],['12억 3,301변동',123301,'상승']]){
+    const input=card('중');
+    input.text=input.text.replace('12억 3,000',raw+`\n${direction}내역 보기`);
+    const result=parseVisibleCard(input);
+    assert.equal(result.price,expected);assert.equal(result.floor,null);
+  }
+  for(const raw of ['12억 ~ 13억변동','협의변동','12억임의문구','0억변동']){
+    assert.throws(()=>parseVisibleCard({...card(),text:card().text.replace('12억 3,000',raw)}));
+  }
+});
+
+test('snapshot failures identify the offending card without leaking URL query parameters',()=>{
+  const bad={...card('17','https://fin.land.naver.com/articles/123?secret=must-not-appear'),text:card().text.replace('12억 3,000','협의')};
+  assert.throws(()=>parseVisibleSnapshot([bad]),error=>error.message.includes('매물 123')&&error.message.includes('매매 협의')&&!error.message.includes('must-not-appear'));
+});
 test('exact floors and canonical article IDs extracted; middle floors stay unknown',()=>{
   const item=parseVisibleCard(card());assert.equal(item.floor,17);assert.equal(item.area,84.85);assert.equal(item.sourceArticleId,'123');
   const unknown=parseVisibleCard(card('중'));assert.equal(unknown.floor,null);assert.equal(unknown.needsFloorReview,true);
