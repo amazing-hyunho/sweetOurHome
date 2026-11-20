@@ -61,6 +61,20 @@ test('concurrent edit conflict is surfaced without overwriting or retrying',asyn
   assert.equal(calls,1);
 });
 
+test('revision-rule 403 is a conflict only when a read confirms a changed version',async()=>{
+  const before={revision:8,updateTime:'old'};
+  for(const [revision,updateTime,expected] of [[9,'new','CONFLICT'],[8,'new','CONFLICT'],[8,'old',undefined]]){
+    let writes=0,reads=0;
+    const fetcher=async(url,options)=>{
+      if(options?.method==='POST'){writes++;return {ok:false,status:403};}
+      reads++;return {ok:true,json:async()=>({fields:{state:encodeValue(state()),revision:encodeValue(revision)},updateTime})};
+    };
+    await assert.rejects(commitSharedState('test-project',before,state(),fetcher),error=>error.code===expected&&Boolean(expected||error.message.includes('403')));
+    assert.equal(writes,1);assert.equal(reads,1);
+  }
+  await assert.rejects(commitSharedState('test-project',before,state(),async()=>({ok:false,status:403})),error=>!error.code&&error.message.includes('403'));
+});
+
 test('replacement retains other complexes and past graph days, rejects older disjoint snapshots',()=>{
   const first=mergeSnapshot(state(),'c',snapshot()).state;
   first.complexes.push({id:'other',name:'다른단지',households:0});
