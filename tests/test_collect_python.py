@@ -39,6 +39,26 @@ class FakePage:
 
 
 class CollectorTests(unittest.TestCase):
+    def test_automatic_browser_starts_minimized_and_uses_normal_chrome(self):
+        args=c.browser_command('chrome.exe','test-profile',['about:blank'],background=True)
+        self.assertIn('--start-minimized',args)
+        self.assertFalse(any(arg.startswith('--headless') for arg in args))
+        self.assertNotIn('--start-minimized',c.browser_command('chrome.exe','test-profile',['about:blank']))
+        self.assertIn('--remote-debugging-port=9223',args)
+    def test_new_collector_tab_does_not_activate_browser(self):
+        from unittest.mock import MagicMock
+        context=MagicMock()
+        context.pages=[]
+        page=FakePage()
+        context.expect_page.return_value.__enter__.return_value.value=page
+        # The collector reads the PageEventInfo value after the context exits.
+        context.expect_page.return_value.value=page
+        session=context.browser.new_browser_cdp_session.return_value
+        chosen,created=c.choose_page(context,{'url':'https://naver.me/test'})
+        self.assertTrue(created)
+        self.assertIs(chosen,page)
+        session.send.assert_called_once_with('Target.createTarget',{'url':'about:blank','background':True})
+        session.detach.assert_called_once()
     def test_tab_selection_uses_url_instead_of_alias(self):
         page=FakePage()
         context=type('Context',(),{'pages':[page]})()

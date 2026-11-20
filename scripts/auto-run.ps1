@@ -25,7 +25,7 @@ try {
     while (-not (Test-Path -LiteralPath $stopFile)) {
         try {
             if (-not (Port-Open 9223)) {
-                $browserJob = Start-Worker $pythonPath @('-X','utf8',('"'+(Join-Path $PSScriptRoot 'collect_python.py')+'"'),'--open-browser') 'browser'
+                $browserJob = Start-Worker $pythonPath @('-X','utf8',('"'+(Join-Path $PSScriptRoot 'collect_python.py')+'"'),'--open-browser','--background') 'browser'
                 # Do not overlap open-browser attempts on a slow network.
                 $browserJob.WaitForExit(120000) | Out-Null
             }

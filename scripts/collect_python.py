@@ -40,7 +40,7 @@ def bridge(action, **data):
     node = shutil.which('node')
     if not node:
         raise RuntimeError('기존 Firebase 저장 모듈 실행에 Node.js 24 이상이 필요합니다.')
-    result = subprocess.run([node,str(ROOT/'scripts/python-collector-bridge.mjs')],input=json.dumps({'action':action,**data},ensure_ascii=False),text=True,encoding='utf-8',capture_output=True,timeout=90,cwd=ROOT)
+    result = subprocess.run([node,str(ROOT/'scripts/python-collector-bridge.mjs')],input=json.dumps({'action':action,**data},ensure_ascii=False),text=True,encoding='utf-8',capture_output=True,timeout=90,cwd=ROOT,creationflags=subprocess.CREATE_NO_WINDOW if os.name=='nt' else 0)
     if result.returncode:
         raise RuntimeError(result.stderr.strip() or 'Firebase 처리 실패')
     return json.loads(result.stdout)
@@ -76,7 +76,14 @@ def check_endpoint():
         raise RuntimeError('전용 브라우저가 연결되지 않았습니다. 먼저 open-collector-browser.cmd를 실행하세요.') from exc
 
 
-def open_browser():
+def browser_command(executable, profile, urls, *, background=False, port=9223):
+    args=[str(executable),'--remote-debugging-address=127.0.0.1',f'--remote-debugging-port={port}',f'--user-data-dir={profile}','--no-first-run']
+    if background:
+        args+=['--start-minimized']
+    return [*args,*urls]
+
+
+def open_browser(background=False):
     if cooldown_remaining()>0:
         raise RuntimeError('조회 제한 대기 중입니다. 대기가 끝난 뒤 브라우저를 여세요.')
     try:
@@ -92,8 +99,8 @@ def open_browser():
     complexes=bridge('list')
     urls=list(dict.fromkeys(valid_url(c['url']) for c in complexes)) or ['about:blank']
     PROFILE.mkdir(parents=True,exist_ok=True)
-    subprocess.Popen([str(executable),'--remote-debugging-address=127.0.0.1','--remote-debugging-port=9223',f'--user-data-dir={PROFILE}','--no-first-run',*urls],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
-    print('수집 전용 브라우저를 열었습니다. 단지의 매매 카드가 보이면 collect-python.cmd를 실행하세요.')
+    subprocess.Popen(browser_command(executable,PROFILE,urls,background=background),stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,creationflags=subprocess.CREATE_NO_WINDOW if os.name=='nt' else 0)
+    print('수집 전용 브라우저를 최소화해 시작했습니다.' if background else '수집 전용 브라우저를 열었습니다. 단지의 매매 카드가 보이면 collect-python.cmd를 실행하세요.')
 
 
 def choose_page(context, complex_info):
@@ -103,7 +110,15 @@ def choose_page(context, complex_info):
         return candidates[0],False
     if candidates:
         return candidates[0],False
-    page=context.new_page()
+    # Playwright's new_page activates a Chrome tab/window. CDP can explicitly
+    # create an inactive tab, leaving the user's foreground application alone.
+    session=context.browser.new_browser_cdp_session()
+    try:
+        with context.expect_page(timeout=15000) as opened:
+            session.send('Target.createTarget',{'url':'about:blank','background':True})
+        page=opened.value
+    finally:
+        session.detach()
     return page,True
 
 
@@ -291,6 +306,7 @@ def main():
     group.add_argument('--watch',action='store_true')
     group.add_argument('--stop',action='store_true')
     parser.add_argument('--refresh',action='store_true',help='첫 수집에서도 열린 단지 탭 새로고침')
+    parser.add_argument('--background',action='store_true',help='--open-browser 사용 시 브라우저를 최소화해 실행')
     args=parser.parse_args()
     DATA.mkdir(parents=True,exist_ok=True)
     if args.stop:
@@ -298,7 +314,7 @@ def main():
         print('반복 수집 중단을 요청했습니다. 진행 중인 수집이 끝나면 종료합니다.')
         return 0
     if args.open_browser:
-        open_browser()
+        open_browser(background=args.background)
         return 0
     return run(args.watch,args.refresh)
 
